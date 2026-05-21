@@ -36,7 +36,7 @@ jobs:
       - name: Fetch and validate XSMB result
         env:
           XSMB_DATE: ${{ inputs.xsmb_date }}
-        run: python src/fetch_xsmb.py
+        run: python src/run_fetch.py
 
       - name: Commit updated data
         run: |
