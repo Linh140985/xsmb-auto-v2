@@ -1,0 +1,60 @@
+name: Update XSMB v2
+
+on:
+  workflow_dispatch:
+    inputs:
+      xsmb_date:
+        description: 'Optional date to fetch, format YYYY-MM-DD. Leave blank for auto date.'
+        required: false
+        type: string
+  schedule:
+    - cron: '40 11 * * *' # 18:40 Vietnam time
+    - cron: '55 11 * * *' # 18:55 Vietnam time fallback
+
+permissions:
+  contents: write
+
+env:
+  TZ: Asia/Ho_Chi_Minh
+
+jobs:
+  update-xsmb-v2:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Fetch and validate XSMB result
+        env:
+          XSMB_DATE: ${{ inputs.xsmb_date }}
+        run: python src/fetch_xsmb.py
+
+      - name: Commit updated data
+        run: |
+          if git diff --quiet; then
+            echo "No data changes to commit"
+            exit 0
+          fi
+          git config --global user.email "action@github.com"
+          git config --global user.name "GitHub Action"
+          git add data/
+          git commit -m "Update XSMB v2 data $(date +'%Y-%m-%d %H:%M')"
+          git push origin main
+
+      - name: Send Telegram notification
+        if: always()
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_SERVER_URL: ${{ github.server_url }}
+        run: python src/notify_telegram.py
